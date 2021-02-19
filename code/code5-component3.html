@@ -1,3 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    .alert {
+      margin-top: 10px;
+      width: 600px;
+      height: 40px;
+      border: 1px solid #000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+    .alert .text {
+      line-height: 40px;
+    }
+    .alert .close {
+      height: 25px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- 下面这部分需要替换掉上面的#app -->
+  <!-- <button class="click-show">点击展示</button>
+  <my-alert></my-alert> -->
+
+  <!-- my-alert的实现 -->
+  <!-- <div class="alert">
+    <div class="text">左侧文字</div>
+  </div> -->
+</body>
+<script>
 function isArray (o) {
   return Object.prototype.toString.call(o) === '[object Array]'
 }
@@ -110,7 +152,9 @@ ViewComponent.prototype.initEvents = function () {
 }
 ViewComponent.prototype.renderAndCollectDependencies = function () {
   this.update = this.update.bind(this)
+  pushCurExecUpdateToStack(this.update)
   this.update()
+  popCurExecUpdateFromStack()
   let fn = this.$options.mounted
   if (fn && isFunction(fn)) {
     fn.call(this)
@@ -120,7 +164,7 @@ ViewComponent.prototype.update = function () {
   // 清除旧的DOM
   let oldRenderedElement = this.renderedElement || this.el
 
-  this.renderedElement = this._render()
+  this.renderedElement = this.render()
   if (oldRenderedElement) {
     let parent = oldRenderedElement.parentNode
     let sibling = oldRenderedElement.nextElementSibling
@@ -132,12 +176,6 @@ ViewComponent.prototype.update = function () {
       parent.appendChild(this.renderedElement)
     }
   }
-}
-ViewComponent.prototype._render = function () {
-  pushCurExecUpdateToStack(this.update)
-  let renderedElement = this.render()
-  popCurExecUpdateFromStack()
-  return renderedElement
 }
 ViewComponent.prototype.createElement = function (tagName, attrs, childNodes) {
   if (isReservedTag(tagName)) {
@@ -152,7 +190,6 @@ ViewComponent.prototype.notifyParent = function (eventName, args) {
   }
 }
 function createHTMLElement (vm, tagName, attrs, childNodes) {
-  if (tagName === '') return document.createTextNode(childNodes)
   let o = document.createElement(tagName)
   for (let k in attrs) {
     if (k === 'class') {
@@ -171,7 +208,7 @@ function createHTMLElement (vm, tagName, attrs, childNodes) {
   if (isArray(childNodes)) {
     for (let i = 0; i < childNodes.length; i++) {
       let child = childNodes[i]
-      child && o.appendChild(isHTMLElement(child) ? child : createHTMLElement(vm, '', {}, child))
+      child && o.appendChild(child)
     }
   } else if (isHTMLElement(childNodes)) {
     o.appendChild(childNodes)
@@ -205,8 +242,9 @@ function setDataReactive (data) {
     let v = data[keys[i]]
     if (isObject(v)) {
       setDataReactive(v)
+    } else {
+      defineReactive(data, keys[i], v)
     }
-    defineReactive(data, keys[i], v)
   }
 }
 
@@ -224,9 +262,6 @@ function defineReactive(data, key, val) {
     },
     set: function (newVal) {
       val = newVal
-      if (isObject(newVal) || isArray(newVal)) {
-        setDataReactive(newVal)
-      }
       for (let i = 0; i < updatesFn.length; i++) {
         updatesFn[i]()
       }
@@ -255,3 +290,112 @@ function popCurExecUpdateFromStack () {
   updateStack.pop()
   curExecUpdate = updateStack[updateStack.length - 1]
 }
+
+// <div class="alert">
+//   <div class="text">左侧文字</div>
+// </div>
+let MyAlert = {
+  props: {
+    content: {
+      default: ''
+    },
+    visible: {
+      default: false
+    },
+  },
+  data: function () {
+    return {
+    }
+  },
+  methods: {
+    close: function () {
+      // this.notifyParent('close')
+      this.visible = false
+    }
+  },
+  render: function () {
+    let children = [
+      this.createElement('div', { class: 'text' }, this.content),
+      this.createElement('button', {
+        class: 'close',
+        on: {
+          click: this.close
+        }
+      }, '关闭')
+    ]
+    return this.visible ? this.createElement('div', { class: 'alert' }, children) : null
+  }
+}
+
+let App = new ViewComponent({
+  el: '#app',
+  components: {
+    MyAlert: MyAlert
+  },
+  data: function () {
+    return {
+      alertVisible: false,
+      alertInfo: '左侧文字',
+      alertBelowInfo: 'alert下方的信息'
+    }
+  },
+  methods: {
+    showAlert: function () {
+      this.alertVisible = true
+    },
+    hideAlert: function () {
+      this.alertVisible = false
+    },
+    changeAlertInfo: function () {
+      this.alertInfo = '新的提示信息'
+    },
+    changeAlertBelowInfo: function () {
+      this.alertBelowInfo = '新的alert下方的信息'
+    }
+  },
+  render: function () {
+    let children = [
+      this.createElement('button', {
+        class: 'click-show',
+        on: {
+          click: this.showAlert
+        }
+      }, '点击展示'),
+      this.createElement('button', {
+        class: 'click-show',
+        on: {
+          click: this.changeAlertInfo
+        }
+      }, '点击更改alert中提示信息')
+    ]
+    let o = this.createElement('my-alert', { 
+      props: {
+        content: this.alertInfo,
+        visible: this.alertVisible
+      },
+      on: {
+        close: this.hideAlert
+      }
+    })
+    if (o) {
+      children.push(o)
+    }
+    children.push(
+      this.createElement('button', {
+        class: 'click-show',
+        on: {
+          click: this.changeAlertBelowInfo
+        }
+      }, '点击更改alert下方的信息'),
+      this.createElement('div', {
+        class: 'alert-below-info'
+      }, this.alertBelowInfo)
+    )
+    return this.createElement('div', { class: 'alert-wrap' }, children)
+  },
+  mounted: function () {
+    console.log(this.alertBelowInfo)
+  }
+})
+</script>
+</html>

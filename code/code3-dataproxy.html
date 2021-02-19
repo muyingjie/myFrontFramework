@@ -148,7 +148,7 @@ function defineReactive(data, key, val) {
     enumerable: true,
     configurable: true,
     get: function () {
-      if (curExecUpdate && !updatesFn.find(curExecUpdate)) {
+      if (curExecUpdate && !updatesFn.find(fn => fn === curExecUpdate)) {
         updatesFn.push(curExecUpdate)
       }
       return val

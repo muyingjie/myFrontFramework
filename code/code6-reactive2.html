@@ -5,9 +5,76 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Document</title>
-  <script src="./viewComponent.js"></script>
+  <script src="./viewComponent6.js"></script>
+  <style>
+  * {
+    box-sizing: border-box;
+  }
+  .good-detail {
+    border: 1px solid #333;
+    padding: 10px;
+  }
+  .item {
+    height: 40px;
+  }
+  </style>
 </head>
 <body>
-  
+  <div id="app"></div>
 </body>
+<script>
+new ViewComponent({
+  el: '#app',
+  data: function () {
+    return {
+      good: {}
+    }
+  },
+  methods: {
+    getGoodData () {
+      let _this = this
+      setTimeout(function () {
+        _this.good = {
+          id: '8faw8cs4fw9760zt7tnesini4qup5hid',
+          name: 'iPhoneX',
+          cpuNum: 1,
+          memory: 1073741824,
+          brand: 'iPhone',
+          category: 'phone',
+          color: 'black'
+        }
+        _this.good.region = '北京'
+      }, 1000)
+    },
+    changeName () {
+      this.good.name = 'new iPhonex'
+    }
+  },
+  render: function () {
+    // 生成新的DOM
+    let children = [
+      this.createElement('div', { class: 'item' }, this.good.name),
+      this.createElement('div', { class: 'item' }, this.good.brand),
+      this.createElement('div', { class: 'item' }, this.good.cpuNum),
+      this.createElement('div', { class: 'item' }, this.good.memory),
+      this.createElement('div', { class: 'item' }, this.good.category),
+      this.createElement('div', { class: 'item' }, this.good.color),
+      this.createElement('div', { class: 'item' }, this.good.region),
+    ]
+    return this.createElement('div', { class: 'good-detail' }, 
+      [
+        this.createElement('button', {
+          on: {
+            click: this.changeName
+          }
+        }, '重命名'),
+        this.createElement('div', { class: 'detail' }, children)
+      ]
+    )
+  },
+  mounted: function () {
+    this.getGoodData()
+  }
+})
+</script>
 </html>
