@@ -212,13 +212,13 @@ function setDataReactive (data) {
 
 let curExecUpdate = null
 function defineReactive(data, key, val) {
-  let updatesFn = []
+  let updateFns = []
   Object.defineProperty(data, key, {
     enumerable: true,
     configurable: true,
     get: function () {
-      if (curExecUpdate && !updatesFn.find(fn => fn === curExecUpdate)) {
-        updatesFn.push(curExecUpdate)
+      if (curExecUpdate && !updateFns.find(fn => fn === curExecUpdate)) {
+        updateFns.push(curExecUpdate)
       }
       return val
     },
@@ -227,8 +227,8 @@ function defineReactive(data, key, val) {
       if (isObject(newVal) || isArray(newVal)) {
         setDataReactive(newVal)
       }
-      for (let i = 0; i < updatesFn.length; i++) {
-        updatesFn[i]()
+      for (let i = 0; i < updateFns.length; i++) {
+        updateFns[i]()
       }
     }
   })

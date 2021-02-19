@@ -43,7 +43,8 @@ new ViewComponent({
           category: 'phone',
           color: 'black'
         }
-        _this.good.region = '北京'
+        // _this.good.region = '北京'
+        _this.$set(_this.good, 'region', '北京')
       }, 1000)
     },
     changeName () {
