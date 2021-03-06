@@ -151,6 +151,21 @@ ViewComponent.prototype.notifyParent = function (eventName, args) {
     this.events[eventName].apply(this.$parent, args)
   }
 }
+ViewComponent.prototype.$set = function (target, key, val) {
+  if (key in target) {
+    target[key] = val
+    return
+  }
+  let updateFns = target._updateFns
+  if (!updateFns) {
+    target[key] = val
+    return
+  }
+  defineReactive(target, key, val)
+  for (let i = 0; i < updateFns.length; i++) {
+    updateFns[i]()
+  }
+}
 function createHTMLElement (vm, tagName, attrs, childNodes) {
   if (tagName === '') return document.createTextNode(childNodes)
   let o = document.createElement(tagName)
@@ -200,19 +215,28 @@ function createComponent (vm, tagName, attrs, childNodes) {
 }
 
 function setDataReactive (data) {
+  let updateFns = []
+  Object.defineProperty(data, '_updateFns', {
+    value: updateFns,
+    enumerable: false,
+    writable: true,
+    configurable: true
+  })
   let keys = Object.keys(data)
   for (let i = 0; i < keys.length; i++) {
     let v = data[keys[i]]
-    if (isObject(v)) {
-      setDataReactive(v)
-    }
     defineReactive(data, keys[i], v)
   }
+  return updateFns
 }
 
 let curExecUpdate = null
 function defineReactive(data, key, val) {
   let updateFns = []
+  let objectUpdateFns
+  if (isObject(val)) {
+    objectUpdateFns = setDataReactive(val)
+  }
   Object.defineProperty(data, key, {
     enumerable: true,
     configurable: true,
@@ -220,12 +244,15 @@ function defineReactive(data, key, val) {
       if (curExecUpdate && !updateFns.find(fn => fn === curExecUpdate)) {
         updateFns.push(curExecUpdate)
       }
+      if (objectUpdateFns && curExecUpdate && !objectUpdateFns.find(fn => fn === curExecUpdate)) {
+        objectUpdateFns.push(curExecUpdate)
+      }
       return val
     },
     set: function (newVal) {
       val = newVal
       if (isObject(newVal) || isArray(newVal)) {
-        setDataReactive(newVal)
+        objectUpdateFns = setDataReactive(newVal)
       }
       for (let i = 0; i < updateFns.length; i++) {
         updateFns[i]()
