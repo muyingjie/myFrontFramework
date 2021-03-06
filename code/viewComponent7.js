@@ -156,15 +156,13 @@ ViewComponent.prototype.$set = function (target, key, val) {
     target[key] = val
     return
   }
-  let updateFns = target._updateFns
-  if (!updateFns) {
+  let dep = target._dep
+  if (!dep) {
     target[key] = val
     return
   }
   defineReactive(target, key, val)
-  for (let i = 0; i < updateFns.length; i++) {
-    updateFns[i]()
-  }
+  dep.publish()
 }
 function createHTMLElement (vm, tagName, attrs, childNodes) {
   if (tagName === '') return document.createTextNode(childNodes)
@@ -215,9 +213,9 @@ function createComponent (vm, tagName, attrs, childNodes) {
 }
 
 function setDataReactive (data) {
-  let updateFns = []
-  Object.defineProperty(data, '_updateFns', {
-    value: updateFns,
+  let dep = new Dependency()
+  Object.defineProperty(data, '_dep', {
+    value: dep,
     enumerable: false,
     writable: true,
     configurable: true
@@ -227,36 +225,34 @@ function setDataReactive (data) {
     let v = data[keys[i]]
     defineReactive(data, keys[i], v)
   }
-  return updateFns
+  return dep
 }
 
 let curExecUpdate = null
 function defineReactive(data, key, val) {
-  let updateFns = []
-  let objectUpdateFns
+  let dep = new Dependency()
+  let childDep
   if (isObject(val)) {
-    objectUpdateFns = setDataReactive(val)
+    childDep = setDataReactive(val)
   }
   Object.defineProperty(data, key, {
     enumerable: true,
     configurable: true,
     get: function () {
-      if (curExecUpdate && !updateFns.find(fn => fn === curExecUpdate)) {
-        updateFns.push(curExecUpdate)
-      }
-      if (objectUpdateFns && curExecUpdate && !objectUpdateFns.find(fn => fn === curExecUpdate)) {
-        objectUpdateFns.push(curExecUpdate)
+      if (curExecUpdate) {
+        dep.subscribe(curExecUpdate)
+        if (childDep) {
+          childDep.subscribe(curExecUpdate)
+        }
       }
       return val
     },
     set: function (newVal) {
       val = newVal
       if (isObject(newVal) || isArray(newVal)) {
-        objectUpdateFns = setDataReactive(newVal)
+        childDep = setDataReactive(newVal)
       }
-      for (let i = 0; i < updateFns.length; i++) {
-        updateFns[i]()
-      }
+      dep.publish()
     }
   })
 }
@@ -281,4 +277,18 @@ function pushCurExecUpdateToStack (fn) {
 function popCurExecUpdateFromStack () {
   updateStack.pop()
   curExecUpdate = updateStack[updateStack.length - 1]
+}
+
+function Dependency () {
+  this.subscribers = []
+}
+Dependency.prototype.subscribe = function (fn) {
+  if (!this.subscribers.find(sub => sub === fn)) {
+    this.subscribers.push(fn)
+  }
+}
+Dependency.prototype.publish = function () {
+  for (let i = 0; i < this.subscribers.length; i++) {
+    this.subscribers[i]()
+  }
 }
