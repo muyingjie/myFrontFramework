@@ -212,7 +212,52 @@ function createComponent (vm, tagName, attrs, childNodes) {
   return componentInstance.renderedElement
 }
 
+let arrayProto = Array.prototype
+let reactiveArrayMethods = Object.create(arrayProto)
+let methodsToPatch = [
+  'push',
+  'pop',
+  'shift',
+  'unshift',
+  'splice',
+  'sort',
+  'reverse'
+]
+methodsToPatch.forEach(function (method) {
+  let original = arrayProto[method]
+  Object.defineProperty(reactiveArrayMethods, method, {
+    value: function () {
+      let args = [], len = arguments.length
+      while ( len-- ) args[ len ] = arguments[ len ]
+
+      let result = original.apply(this, args)
+      let dep = this._dep
+      let inserted
+      switch (method) {
+        case 'push':
+        case 'unshift':
+          inserted = args
+          break
+        case 'splice':
+          inserted = args.slice(2)
+          break
+      }
+      if (inserted) {
+        for (let i = 0; i < inserted.length; i++) {
+          setDataReactive(inserted[i])
+        }
+      }
+      dep.publish()
+      return result
+    },
+    enumerable: false,
+    writable: true,
+    configurable: true
+  })
+})
+
 function setDataReactive (data) {
+  if (!isObject(data) && !isArray(data)) return
   let dep = new Dependency()
   Object.defineProperty(data, '_dep', {
     value: dep,
@@ -220,19 +265,38 @@ function setDataReactive (data) {
     writable: true,
     configurable: true
   })
-  let keys = Object.keys(data)
-  for (let i = 0; i < keys.length; i++) {
-    let v = data[keys[i]]
-    defineReactive(data, keys[i], v)
+  if (isObject(data)) {
+    let keys = Object.keys(data)
+    for (let i = 0; i < keys.length; i++) {
+      let v = data[keys[i]]
+      defineReactive(data, keys[i], v)
+    }
+  } else if (isArray(data)) {
+    setArrayReactive(data)
+    for (let i = 0; i < data.length; i++) {
+      setDataReactive(data[i])
+    }
   }
   return dep
+}
+
+function setArrayReactive (arr) {
+  for (var i = 0, l = methodsToPatch.length; i < l; i++) {
+    var key = methodsToPatch[i]
+    Object.defineProperty(arr, key, {
+      value: reactiveArrayMethods[key],
+      enumerable: false,
+      writable: true,
+      configurable: true
+    })
+  }
 }
 
 let curExecUpdate = null
 function defineReactive(data, key, val) {
   let dep = new Dependency()
   let childDep
-  if (isObject(val)) {
+  if (isObject(val) || isArray(val)) {
     childDep = setDataReactive(val)
   }
   Object.defineProperty(data, key, {

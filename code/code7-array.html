@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <script src="./viewComponent8.js"></script>
+  <style>
+  * {
+    box-sizing: border-box;
+  }
+  .all-labels, .selected-labels {
+    display: flex;
+  }
+  .all-labels .title, .selected-labels .title {
+    width: 100px;
+  }
+  .all-labels .item, .selected-labels .item {
+    width: 50px;
+  }
+  .all-labels .item .add, .selected-labels .item .close {
+    cursor: pointer;
+  }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script>
+new ViewComponent({
+  el: '#app',
+  data: function () {
+    return {
+      selectedLabels: [],
+      canSelectLabels: []
+    }
+  },
+  methods: {
+    getLabelData () {
+      let _this = this
+      setTimeout(function () {
+        _this.canSelectLabels = [
+          { id: 'f0145630-7e90-11eb-9439-0242ac130002', name: '手机' },
+          { id: '151fbb59-fbaa-42a9-bf44-41266f601292', name: '电脑' },
+          { id: 'b5233098-066b-49ba-baa5-3c9dc7c388fc', name: '家具' },
+          { id: '2029def3-a95d-49ca-b06b-198d0582011d', name: '服装' },
+          { id: '4c49831c-d591-4114-abed-f4cc00414f44', name: '玩具' }
+        ]
+      }, 1000)
+    },
+    addLabel: function (label) {
+      let selectedIndex = this.selectedLabels.findIndex(l => l.id === label.id)
+      let canSelectIndex = this.canSelectLabels.findIndex(l => l.id === label.id)
+      if (selectedIndex === -1) {
+        this.canSelectLabels.splice(canSelectIndex, 1)
+        this.selectedLabels.push(label)
+      }
+    },
+    deleteLabel: function (label) {
+      let i = this.selectedLabels.findIndex(l => l.id === label.id)
+      if (i >= 0) {
+        this.selectedLabels.splice(i, 1)
+        this.canSelectLabels.push(label)
+      }
+    }
+  },
+  render: function () {
+    let _this = this
+    // 生成新的DOM
+    let canSelectLabels = []
+    for (let i = 0; i < this.canSelectLabels.length; i++) {
+      canSelectLabels.push(this.createElement('div', { class: 'item' }, [
+        this.createElement('span', {
+          class: 'add',
+          on: {
+            click: function () {
+              _this.addLabel(this.canSelectLabels[i])
+            }
+          }
+        }, '+'),
+        this.canSelectLabels[i].name
+      ]))
+    }
+    let selectedLabels = []
+    for (let i = 0; i < this.selectedLabels.length; i++) {
+      selectedLabels.push(this.createElement('div', { class: 'item' }, [
+        this.createElement('span', {
+          class: 'close',
+          on: {
+            click: function () {
+              _this.deleteLabel(this.selectedLabels[i])
+            }
+          }
+        }, 'x'),
+        this.selectedLabels[i].name
+      ]))
+    }
+    return this.createElement('div', { class: 'select-labels' }, 
+      [
+        this.createElement('div', { class: 'all-labels' }, [ this.createElement('div', { class: 'title' }, '所有的标签：') ].concat(canSelectLabels)),
+        this.createElement('div', { class: 'selected-labels' }, [ this.createElement('div', { class: 'title' }, '选中的标签：') ].concat(selectedLabels))
+      ]
+    )
+  },
+  mounted: function () {
+    this.getLabelData()
+  }
+})
+</script>
+</html>
